@@ -1,0 +1,4 @@
+node_modules
+dist
+.claude/settings.local.json
+.e2e-*.mjs

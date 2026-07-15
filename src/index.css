@@ -1,0 +1,334 @@
+:root {
+  --color-bg: #f5f4f0;
+  --color-card: #ffffff;
+  --color-text: #222222;
+  --color-muted: #888888;
+  --color-border: #e0ddd4;
+  --color-primary: #534AB7;
+  --color-primary-text: #ffffff;
+  --color-secondary-bg: #eeedfe;
+  --color-secondary-text: #3C3489;
+  --color-danger-bg: #F0997B;
+  --color-danger-text: #4A1B0C;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 16px 90px;
+  min-height: 100vh;
+}
+
+.nav-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  background: var(--color-card);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+
+.nav-bar a {
+  flex: 1;
+  text-align: center;
+  padding: 12px 4px;
+  text-decoration: none;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.nav-bar a.active { color: var(--color-primary); font-weight: 600; }
+
+.card {
+  background: var(--color-card);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* 버튼 색상은 위 :root 변수만 바꾸면 앱 전체에 반영된다 */
+.btn {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn.secondary { background: var(--color-secondary-bg); color: var(--color-secondary-text); }
+.btn.danger { background: var(--color-danger-bg); color: var(--color-danger-text); }
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+h1 { font-size: 22px; }
+h2 { font-size: 18px; }
+.timer-display {
+  font-size: 56px;
+  font-weight: 600;
+  text-align: center;
+  margin: 24px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 관리자 모드 토글 */
+.admin-toggle {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  font-size: 13px;
+  padding: 12px 4px;
+  cursor: pointer;
+}
+.admin-toggle.active { color: var(--color-primary); font-weight: 600; }
+
+/* 모달 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 200;
+}
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* 뱃지 아이콘 (기능은 숨겨져 있지만 재활성화 대비 스타일은 유지) */
+.badge-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+/* 게임 진행 화면 */
+.play-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #000;
+  overflow: hidden;
+}
+
+.play-topbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.play-timer {
+  color: #fff;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+.play-mute-btn {
+  background: none;
+  border: none;
+  opacity: 0.3;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.play-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+/* 참가자 목록: 하단 중앙, 가로 배치 + 줄바꿈 */
+.play-participants-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.play-participant-chip {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #222;
+  cursor: pointer;
+}
+
+/* 시계 아이콘 + 게임종료 버튼 줄: 하단 중앙 정렬 */
+.play-bottom-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.play-timer-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 999px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* 리소스 바 (Play 화면 하단) */
+.resource-bar {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 10px 12px 0;
+}
+.resource-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 64px;
+}
+.resource-bar-label {
+  font-size: 12px;
+  color: #fff;
+  white-space: nowrap;
+}
+.resource-bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.resource-bar-controls .btn {
+  padding: 4px 10px;
+  font-size: 14px;
+}
+
+/* 승리 이펙트 */
+.win-effect-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+.win-curtain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: #7a1f2b;
+  z-index: 1;
+}
+.win-curtain-left {
+  left: 0;
+  animation: curtainOpenLeft 0.6s ease forwards;
+  animation-delay: 0.1s;
+}
+.win-curtain-right {
+  right: 0;
+  animation: curtainOpenRight 0.6s ease forwards;
+  animation-delay: 0.1s;
+}
+@keyframes curtainOpenLeft {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@keyframes curtainOpenRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+.win-frame {
+  position: relative;
+  z-index: 2;
+  background: #fff;
+  border: 8px solid #C9A227;
+  border-radius: 8px;
+  padding: 20px 28px;
+  text-align: center;
+  max-width: 300px;
+  opacity: 0;
+  transform: scale(0.4);
+  animation: winZoomIn 0.6s ease forwards;
+  animation-delay: 0.5s;
+}
+@keyframes winZoomIn {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+.win-frame-portrait {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  background: var(--color-secondary-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: var(--color-primary);
+  overflow: hidden;
+}
+.win-frame-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.win-message {
+  font-weight: 700;
+  color: #C9A227;
+  margin: 0 0 6px;
+}
+.win-name {
+  margin: 0;
+}
