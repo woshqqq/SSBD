@@ -37,7 +37,7 @@ export default function PresetForm({ preset, onSave, onCancel }) {
 
       <p style={{ color: '#888', margin: '4px 0' }}>기본 이미지 중 하나를 고르거나, 아래에서 직접 올릴 수 있어요.</p>
       <CharacterImagePicker value={typeof image === 'string' ? image : null} onSelect={setImage} />
-      <input type="file" accept="image/*" style={{ marginTop: 8 }} onChange={e => setImage(e.target.files?.[0] ?? null)} />
+      <input type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.heic" style={{ marginTop: 8 }} onChange={e => setImage(e.target.files?.[0] ?? null)} />
 
       <input placeholder="이름" value={name} onChange={e => setName(e.target.value)} />
       <input placeholder="칭호 (예: 독재자)" value={title} onChange={e => setTitle(e.target.value)} />

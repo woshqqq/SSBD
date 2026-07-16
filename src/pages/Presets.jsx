@@ -179,7 +179,7 @@ export default function Presets() {
         <CharacterImagePicker value={typeof image === 'string' ? image : null} onSelect={setImage} />
 
         <p style={{ color: '#888', margin: '12px 0 4px' }}>또는 직접 이미지를 올릴 수도 있어요.</p>
-        <input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
+        <input type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.heic" onChange={e => setImage(e.target.files?.[0] ?? null)} />
 
         <button className="btn" style={{ marginTop: 8 }} onClick={add}>등록</button>
       </div>

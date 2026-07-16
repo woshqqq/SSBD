@@ -104,7 +104,7 @@ export default function GameDetail() {
         <p style={{ color: '#888', margin: '4px 0 8px' }}>
           {game.backgroundImage?.name ?? '설정된 배경화면이 없어요 (기본 배경이 사용돼요)'}
         </p>
-        <input type="file" accept="image/*" onChange={changeBackground} />
+        <input type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.heic" onChange={changeBackground} />
       </div>
 
       <div className="card">

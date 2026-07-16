@@ -52,7 +52,8 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
         <div className="card">
           <h2>배경음악 연결하기</h2>
           {bgmPreviewUrl && <audio src={bgmPreviewUrl} controls style={{ width: '100%', marginBottom: 8 }} />}
-          <input type="file" accept="audio/*" onChange={e => setBgmFile(e.target.files?.[0] ?? null)} />
+          {/* iOS Safari가 accept="audio/*"만으로는 mp3를 자기 인식 못 하는 경우가 있어 확장자를 같이 명시한다 */}
+          <input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.mp4" onChange={e => setBgmFile(e.target.files?.[0] ?? null)} />
         </div>
       )}
 
