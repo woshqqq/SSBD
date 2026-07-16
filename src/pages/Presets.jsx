@@ -6,8 +6,10 @@ import { blobFieldsToDataUrls, dataUrlFieldsToBlobs } from '../utils/blobBase64.
 import { pickRandomDefaultCharacter } from '../config/defaultCharacters.js'
 import Modal from '../components/Modal.jsx'
 import PresetForm from '../components/PresetForm.jsx'
+import DisplayName from '../components/DisplayName.jsx'
+import CharacterImagePicker from '../components/CharacterImagePicker.jsx'
 
-const empty = { name: '', job: '', specialty: '', hobby: '' }
+const empty = { name: '', title: '', job: '', specialty: '', hobby: '' }
 const IMAGE_FIELDS = ['image']
 
 function PresetCard({ preset, onEdit, onDelete }) {
@@ -22,10 +24,10 @@ function PresetCard({ preset, onEdit, onDelete }) {
         {imageSrc ? (
           <img src={imageSrc} alt={preset.name} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover' }} />
         ) : (
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#eeedfe' }} />
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-secondary-bg)' }} />
         )}
         <div>
-          <h2 style={{ margin: 0 }}>{preset.name}</h2>
+          <h2 style={{ margin: 0 }}><DisplayName title={preset.title} name={preset.name} /></h2>
           <p style={{ color: '#888', margin: '4px 0 0' }}>
             {preset.job} · {preset.specialty} · {preset.hobby}
           </p>
@@ -44,7 +46,7 @@ function PresetCard({ preset, onEdit, onDelete }) {
 
 export default function Presets() {
   const [form, setForm] = useState(empty)
-  const [imageFile, setImageFile] = useState(null)
+  const [image, setImage] = useState(null) // File(업로드) 또는 문자열 경로(기본 이미지 선택) 또는 null(자동 배정)
   const presets = useLiveQuery(() => db.presets.toArray(), [])
   const fileInputRef = useRef(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -123,10 +125,10 @@ export default function Presets() {
 
   async function add() {
     if (!form.name) return alert('이름은 필수예요.')
-    const image = imageFile ?? pickRandomDefaultCharacter().image
-    await db.presets.add({ ...form, image, wins: 0, playCount: 0, badges: [] })
+    const finalImage = image ?? pickRandomDefaultCharacter().image
+    await db.presets.add({ ...form, image: finalImage, wins: 0, playCount: 0, badges: [] })
     setForm(empty)
-    setImageFile(null)
+    setImage(null)
   }
 
   function requestDelete(preset) {
@@ -168,11 +170,17 @@ export default function Presets() {
       <div className="card">
         <h2>새 캐릭터 등록</h2>
         <input placeholder="이름" value={form.name} onChange={e => update('name', e.target.value)} />
+        <input placeholder="칭호 (예: 독재자)" value={form.title} onChange={e => update('title', e.target.value)} />
         <input placeholder="직업" value={form.job} onChange={e => update('job', e.target.value)} />
         <input placeholder="특기" value={form.specialty} onChange={e => update('specialty', e.target.value)} />
         <input placeholder="취미" value={form.hobby} onChange={e => update('hobby', e.target.value)} />
-        <p style={{ color: '#888', margin: '4px 0' }}>이미지를 고르지 않으면 기본 이미지 중 하나가 자동으로 배정돼요.</p>
-        <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] ?? null)} />
+
+        <p style={{ color: '#888', margin: '4px 0' }}>기본 이미지 중 하나를 골라주세요 (안 고르면 자동으로 배정돼요).</p>
+        <CharacterImagePicker value={typeof image === 'string' ? image : null} onSelect={setImage} />
+
+        <p style={{ color: '#888', margin: '12px 0 4px' }}>또는 직접 이미지를 올릴 수도 있어요.</p>
+        <input type="file" accept="image/*" onChange={e => setImage(e.target.files?.[0] ?? null)} />
+
         <button className="btn" style={{ marginTop: 8 }} onClick={add}>등록</button>
       </div>
 

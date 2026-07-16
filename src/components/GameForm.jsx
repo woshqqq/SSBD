@@ -10,6 +10,7 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [genre, setGenre] = useState(initial?.genre ?? GENRES[0])
   const [note, setNote] = useState(initial?.note ?? '')
+  const [teamMode, setTeamMode] = useState(initial?.teamMode ?? false)
   const [bgmFile, setBgmFile] = useState(null)
 
   const bgmPreviewUrl = useObjectUrl(bgmFile ?? initial?.bgm ?? null)
@@ -21,6 +22,7 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
       name: name.trim(),
       genre,
       note,
+      teamMode,
     }
     if (mode === 'edit' && bgmFile) payload.bgm = bgmFile
     onSubmit(payload)
@@ -39,6 +41,11 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
 
         <h2>비고 (인원 등)</h2>
         <input value={note} onChange={e => setNote(e.target.value)} placeholder="예: 3~4인용" />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <input type="checkbox" checked={teamMode} onChange={e => setTeamMode(e.target.checked)} />
+          팀전으로 진행
+        </label>
       </div>
 
       {mode === 'edit' && (

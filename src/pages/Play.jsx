@@ -5,10 +5,12 @@ import { db } from '../db.js'
 import { useObjectUrl } from '../hooks/useObjectUrl.js'
 import { usePlayTimer } from '../hooks/usePlayTimer.js'
 import { formatDuration } from '../utils/formatDuration.js'
+import { colorForParticipant } from '../utils/participantColor.js'
 import Modal from '../components/Modal.jsx'
 import ParticipantPicker from '../components/ParticipantPicker.jsx'
 import WinEffect from '../components/WinEffect.jsx'
 import PlayTimerPopup from '../components/PlayTimerPopup.jsx'
+import DisplayName from '../components/DisplayName.jsx'
 import { publicPath } from '../utils/publicPath.js'
 
 const DEFAULT_BACKGROUND = publicPath('backgrounds/background_default.png')
@@ -48,12 +50,14 @@ export default function Play() {
   const elapsedMs = now - session.startedAt
   const sorted = [...participants].sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   const currentPresetIds = participants.filter(p => p.presetId).map(p => p.presetId)
+  const teamMode = Boolean(game.teamMode)
+  const teamNames = teamMode ? [...new Set(participants.map(p => p.team).filter(Boolean))].sort() : []
 
   // 실제 승리 반영: 세션 참가자(wins)와 연결된 프리셋(전체 누적 wins)을 함께 갱신한다.
   // 게스트(presetId 없음)는 프리셋이 없으니 세션 기록만 남긴다.
   async function applyWin(participant, showEffect) {
     await db.participants.update(participant.id, { wins: (participant.wins || 0) + 1 })
-    let presetForEffect = { name: participant.name, image: null }
+    let presetForEffect = { name: participant.name, title: participant.title, image: null }
     if (participant.presetId) {
       const preset = await db.presets.get(participant.presetId)
       if (preset) {
@@ -70,7 +74,7 @@ export default function Play() {
   }
 
   async function handleSwap(newPreset) {
-    await db.participants.update(actionFor.id, { presetId: newPreset.id, name: newPreset.name })
+    await db.participants.update(actionFor.id, { presetId: newPreset.id, name: newPreset.name, title: newPreset.title || '' })
     setSwapMode(false)
     setActionFor(null)
   }
@@ -80,14 +84,21 @@ export default function Play() {
     nav(`/result/${sid}`)
   }
 
-  function toggleWinner(id) {
-    setSelectedWinners(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  function toggleWinner(key) {
+    setSelectedWinners(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key])
   }
 
   async function confirmWinners() {
-    for (const id of selectedWinners) {
-      const p = participants.find(x => x.id === id)
-      if (p) await applyWin(p, false)
+    if (teamMode) {
+      for (const team of selectedWinners) {
+        const members = participants.filter(p => p.team === team)
+        for (const p of members) await applyWin(p, false)
+      }
+    } else {
+      for (const id of selectedWinners) {
+        const p = participants.find(x => x.id === id)
+        if (p) await applyWin(p, false)
+      }
     }
     await finalizeSession()
   }
@@ -100,6 +111,18 @@ export default function Play() {
     } else {
       finalizeSession()
     }
+  }
+
+  function ParticipantChip({ p }) {
+    return (
+      <button
+        className="play-participant-chip"
+        style={{ backgroundColor: colorForParticipant(p.presetId ?? p.name) }}
+        onClick={() => setActionFor(p)}
+      >
+        <DisplayName title={p.title} name={p.name} />
+      </button>
+    )
   }
 
   return (
@@ -118,11 +141,18 @@ export default function Play() {
 
       <div className="play-bottom">
         <div className="play-participants-list">
-          {sorted.map(p => (
-            <button key={p.id} className="play-participant-chip" onClick={() => setActionFor(p)}>
-              {p.name}
-            </button>
-          ))}
+          {teamMode ? (
+            teamNames.map(team => (
+              <div key={team} className="play-team-group">
+                <span className="play-team-label">{team}</span>
+                <div className="play-team-members">
+                  {sorted.filter(p => p.team === team).map(p => <ParticipantChip key={p.id} p={p} />)}
+                </div>
+              </div>
+            ))
+          ) : (
+            sorted.map(p => <ParticipantChip key={p.id} p={p} />)
+          )}
         </div>
 
         <div className="play-bottom-controls">
@@ -135,7 +165,7 @@ export default function Play() {
 
       {actionFor && !swapMode && (
         <Modal onClose={() => setActionFor(null)}>
-          <h2>{actionFor.name}</h2>
+          <h2><DisplayName title={actionFor.title} name={actionFor.name} /></h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn secondary" onClick={() => setSwapMode(true)}>수정</button>
             <button className="btn" onClick={() => handleWin(actionFor)}>승리</button>
@@ -157,17 +187,35 @@ export default function Play() {
       {finalCheck && (
         <Modal onClose={() => setFinalCheck(false)}>
           <h2>승리자 체크</h2>
-          <p style={{ color: '#888' }}>승리한 참가자를 모두 선택하세요 (복수 선택 가능).</p>
-          {sorted.map(p => (
-            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-              <input
-                type="checkbox"
-                checked={selectedWinners.includes(p.id)}
-                onChange={() => toggleWinner(p.id)}
-              />
-              {p.name} · 승리 {p.wins}회
-            </label>
-          ))}
+          {teamMode ? (
+            <>
+              <p style={{ color: '#888' }}>승리한 팀을 모두 선택하세요 (복수 선택 가능).</p>
+              {teamNames.map(team => (
+                <label key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedWinners.includes(team)}
+                    onChange={() => toggleWinner(team)}
+                  />
+                  {team} ({participants.filter(p => p.team === team).length}명)
+                </label>
+              ))}
+            </>
+          ) : (
+            <>
+              <p style={{ color: '#888' }}>승리한 참가자를 모두 선택하세요 (복수 선택 가능).</p>
+              {sorted.map(p => (
+                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedWinners.includes(p.id)}
+                    onChange={() => toggleWinner(p.id)}
+                  />
+                  <DisplayName title={p.title} name={p.name} /> · 승리 {p.wins}회
+                </label>
+              ))}
+            </>
+          )}
           <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={confirmWinners}>완료</button>
         </Modal>
       )}

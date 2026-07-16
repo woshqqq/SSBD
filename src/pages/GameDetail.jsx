@@ -7,28 +7,44 @@ import Modal from '../components/Modal.jsx'
 import ParticipantPicker from '../components/ParticipantPicker.jsx'
 import CreatePresetPopup from '../components/CreatePresetPopup.jsx'
 import CreateGuestPopup from '../components/CreateGuestPopup.jsx'
+import DisplayName from '../components/DisplayName.jsx'
 
 export default function GameDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const [participants, setParticipants] = useState([]) // [{key, presetId, name}] - 게임 시작 전까지는 로컬에만 존재
+  const [participants, setParticipants] = useState([]) // [{key, presetId, name, title, team}] - 게임 시작 전까지는 로컬에만 존재
+  const [teams, setTeams] = useState(['A팀', 'B팀'])
   const [modal, setModal] = useState(null) // null | 'picker' | 'create' | 'guest'
   const { isAdmin } = useAdminMode()
 
   const game = useLiveQuery(() => db.games.get(Number(id)), [id])
 
-  function addParticipant(preset) {
-    setParticipants(prev => [...prev, { key: `preset-${preset.id}`, presetId: preset.id, name: preset.name }])
+  // 프리셋 불러오기(다중선택)/참가자 생성/게스트 생성 결과를 한꺼번에 받아 참가자 목록에 추가한다.
+  function addParticipants(items) {
+    const withTeam = items.map(p => ({ ...p, team: game.teamMode ? teams[0] : undefined }))
+    setParticipants(prev => [...prev, ...withTeam])
     setModal(null)
   }
 
-  function addGuests(guests) {
-    setParticipants(prev => [...prev, ...guests])
-    setModal(null)
+  function addPresetSingle(preset) {
+    addParticipants([{ key: `preset-${preset.id}`, presetId: preset.id, name: preset.name, title: preset.title }])
+  }
+
+  function addPresetsMulti(presets) {
+    addParticipants(presets.map(p => ({ key: `preset-${p.id}`, presetId: p.id, name: p.name, title: p.title })))
   }
 
   function removeParticipant(key) {
     setParticipants(prev => prev.filter(p => p.key !== key))
+  }
+
+  function setParticipantTeam(key, team) {
+    setParticipants(prev => prev.map(p => p.key === key ? { ...p, team } : p))
+  }
+
+  function addTeam() {
+    const nextLetter = String.fromCharCode(65 + teams.length) // A,B,C,D...
+    setTeams(prev => [...prev, `${nextLetter}팀`])
   }
 
   async function changeBackground(e) {
@@ -48,7 +64,14 @@ export default function GameDetail() {
         endedAt: null,
       })
       await db.participants.bulkAdd(
-        participants.map(p => ({ sessionId: newSessionId, presetId: p.presetId, name: p.name, wins: 0 }))
+        participants.map(p => ({
+          sessionId: newSessionId,
+          presetId: p.presetId,
+          name: p.name,
+          title: p.title || '',
+          team: p.team ?? null,
+          wins: 0,
+        }))
       )
       for (const p of participants) {
         if (!p.presetId) continue // 게스트는 전적을 남기지 않는다.
@@ -93,11 +116,31 @@ export default function GameDetail() {
 
       <div className="card">
         <h2>참가자 등록</h2>
+
+        {game.teamMode && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            {teams.map(t => (
+              <span key={t} className="btn secondary" style={{ padding: '6px 12px' }}>{t}</span>
+            ))}
+            <button className="btn secondary" onClick={addTeam}>+ 팀 추가</button>
+          </div>
+        )}
+
         {participants.length === 0 && <p style={{ color: '#888' }}>등록된 참가자가 없어요.</p>}
         {participants.map(p => (
-          <div key={p.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-            <span>{p.name}{!p.presetId && <span style={{ color: '#888' }}> (게스트)</span>}</span>
-            <button className="btn danger" onClick={() => removeParticipant(p.key)}>제거</button>
+          <div key={p.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+            <span>
+              <DisplayName title={p.title} name={p.name} />
+              {!p.presetId && <span style={{ color: '#888' }}> (게스트)</span>}
+            </span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {game.teamMode && (
+                <select value={p.team} onChange={e => setParticipantTeam(p.key, e.target.value)} style={{ width: 'auto', margin: 0 }}>
+                  {teams.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              )}
+              <button className="btn danger" onClick={() => removeParticipant(p.key)}>제거</button>
+            </div>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -113,17 +156,17 @@ export default function GameDetail() {
 
       {modal === 'picker' && (
         <Modal onClose={() => setModal(null)}>
-          <ParticipantPicker excludeIds={addedIds} onSelect={addParticipant} />
+          <ParticipantPicker excludeIds={addedIds} multiSelect onConfirm={addPresetsMulti} />
         </Modal>
       )}
       {modal === 'create' && (
         <Modal onClose={() => setModal(null)}>
-          <CreatePresetPopup onCreated={addParticipant} />
+          <CreatePresetPopup onCreated={addPresetSingle} />
         </Modal>
       )}
       {modal === 'guest' && (
         <Modal onClose={() => setModal(null)}>
-          <CreateGuestPopup onConfirm={addGuests} />
+          <CreateGuestPopup onConfirm={addParticipants} />
         </Modal>
       )}
     </div>
