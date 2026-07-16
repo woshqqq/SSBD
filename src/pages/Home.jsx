@@ -3,7 +3,33 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db.js'
 import { useAdminMode } from '../context/AdminModeContext.jsx'
+import { useObjectUrl } from '../hooks/useObjectUrl.js'
+import { publicPath } from '../utils/publicPath.js'
 import Modal from '../components/Modal.jsx'
+
+const DEFAULT_BACKGROUND = publicPath('backgrounds/background_default.png')
+
+function GameCard({ game, isAdmin, onOpen, onEdit, onDelete }) {
+  const backgroundUrl = useObjectUrl(game.backgroundImage ?? null)
+
+  return (
+    <div className="card" onClick={() => onOpen(game)} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <img src={backgroundUrl || DEFAULT_BACKGROUND} alt="" className="home-game-thumb" />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <h2 style={{ margin: 0 }}>{game.name}</h2>
+          {isAdmin && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn secondary" onClick={e => { e.stopPropagation(); onEdit(game) }}>수정</button>
+              <button className="btn danger" onClick={e => { e.stopPropagation(); onDelete(game) }}>삭제</button>
+            </div>
+          )}
+        </div>
+        <p style={{ color: '#888', margin: '4px 0 0' }}>{game.genre}{game.note && ` · ${game.note}`}</p>
+      </div>
+    </div>
+  )
+}
 
 export default function Home() {
   const [query, setQuery] = useState('')
@@ -37,28 +63,14 @@ export default function Home() {
       </button>
 
       {games?.map(g => (
-        <div key={g.id} className="card" onClick={() => nav(`/game/${g.id}`)}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <h2 style={{ margin: 0 }}>{g.name}</h2>
-            {isAdmin && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  className="btn secondary"
-                  onClick={e => { e.stopPropagation(); nav(`/game/${g.id}/edit`) }}
-                >
-                  수정
-                </button>
-                <button
-                  className="btn danger"
-                  onClick={e => { e.stopPropagation(); setDeleteTarget(g) }}
-                >
-                  삭제
-                </button>
-              </div>
-            )}
-          </div>
-          <p style={{ color: '#888', margin: '4px 0 0' }}>{g.genre}{g.note && ` · ${g.note}`}</p>
-        </div>
+        <GameCard
+          key={g.id}
+          game={g}
+          isAdmin={isAdmin}
+          onOpen={game => nav(`/game/${game.id}`)}
+          onEdit={game => nav(`/game/${game.id}/edit`)}
+          onDelete={game => setDeleteTarget(game)}
+        />
       ))}
       {games?.length === 0 && <p>검색 결과가 없어요.</p>}
 

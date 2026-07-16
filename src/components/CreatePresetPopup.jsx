@@ -10,15 +10,16 @@ export default function CreatePresetPopup({ onCreated }) {
   async function create() {
     if (!name.trim()) return alert('이름은 필수예요.')
 
+    const image = pickRandomDefaultCharacter().image
     const id = await db.presets.add({
       name: name.trim(),
       job: '', specialty: '', hobby: '',
-      image: pickRandomDefaultCharacter().image,
+      image,
       wins: 0,
       playCount: 0,
       badges: [],
     })
-    onCreated({ id, name: name.trim() })
+    onCreated({ id, name: name.trim(), image })
   }
 
   return (

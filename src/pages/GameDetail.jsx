@@ -14,7 +14,7 @@ const AUDIO_ACCEPT = 'audio/*,.mp3,.wav,.m4a,.aac,.ogg,.mp4'
 export default function GameDetail() {
   const { id } = useParams()
   const nav = useNavigate()
-  const [participants, setParticipants] = useState([]) // [{key, presetId, name, title, team}] - 게임 시작 전까지는 로컬에만 존재
+  const [participants, setParticipants] = useState([]) // [{key, presetId, name, title, image, team}] - 게임 시작 전까지는 로컬에만 존재
   const [teams, setTeams] = useState(['A팀', 'B팀'])
   const [modal, setModal] = useState(null) // null | 'picker' | 'create' | 'guest' | 'deleteGame'
   const [fxName, setFxName] = useState('')
@@ -31,11 +31,11 @@ export default function GameDetail() {
   }
 
   function addPresetSingle(preset) {
-    addParticipants([{ key: `preset-${preset.id}`, presetId: preset.id, name: preset.name, title: preset.title }])
+    addParticipants([{ key: `preset-${preset.id}`, presetId: preset.id, name: preset.name, title: preset.title, image: preset.image }])
   }
 
   function addPresetsMulti(presets) {
-    addParticipants(presets.map(p => ({ key: `preset-${p.id}`, presetId: p.id, name: p.name, title: p.title })))
+    addParticipants(presets.map(p => ({ key: `preset-${p.id}`, presetId: p.id, name: p.name, title: p.title, image: p.image })))
   }
 
   function removeParticipant(key) {
@@ -71,6 +71,11 @@ export default function GameDetail() {
     setFxFile(null)
   }
 
+  async function renameSoundEffect(fxId, name) {
+    const next = (game.soundEffects || []).map(fx => fx.id === fxId ? { ...fx, name } : fx)
+    await db.games.update(game.id, { soundEffects: next })
+  }
+
   async function removeSoundEffect(fxId) {
     const next = (game.soundEffects || []).filter(fx => fx.id !== fxId)
     await db.games.update(game.id, { soundEffects: next })
@@ -97,6 +102,7 @@ export default function GameDetail() {
           presetId: p.presetId,
           name: p.name,
           title: p.title || '',
+          image: p.image ?? null,
           team: p.team ?? null,
           wins: 0,
         }))
@@ -129,38 +135,6 @@ export default function GameDetail() {
         )}
       </div>
       <p style={{ color: '#888' }}>{game.genre}{game.note && ` · ${game.note}`}</p>
-
-      <div className="card">
-        <h2>배경화면</h2>
-        <p style={{ color: '#888', margin: '4px 0 8px' }}>
-          {game.backgroundImage?.name ?? '설정된 배경화면이 없어요 (기본 배경이 사용돼요)'}
-        </p>
-        <input type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.heic" onChange={changeBackground} />
-      </div>
-
-      <div className="card">
-        <h2>배경음악</h2>
-        <p style={{ color: '#888', margin: '4px 0 8px' }}>
-          {game.bgm?.name ?? '설정된 배경음악이 없어요'}
-        </p>
-        <input type="file" accept={AUDIO_ACCEPT} onChange={changeBgm} />
-      </div>
-
-      {isAdmin && (
-        <div className="card">
-          <h2>효과음 버튼</h2>
-          <p style={{ color: '#888', margin: '4px 0 8px' }}>게임 진행 화면에 표시할 효과음 버튼을 만들어요. 관리자만 추가/삭제할 수 있어요.</p>
-          {(game.soundEffects || []).map(fx => (
-            <div key={fx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
-              <span>{fx.name}</span>
-              <button className="btn danger" onClick={() => removeSoundEffect(fx.id)}>삭제</button>
-            </div>
-          ))}
-          <input placeholder="효과음 이름 (예: 승리 팡파레)" value={fxName} onChange={e => setFxName(e.target.value)} />
-          <input type="file" accept={AUDIO_ACCEPT} onChange={e => setFxFile(e.target.files?.[0] ?? null)} />
-          <button className="btn secondary" style={{ marginTop: 8 }} onClick={addSoundEffect}>효과음 버튼 추가</button>
-        </div>
-      )}
 
       <div className="card">
         <h2>참가자 등록</h2>
@@ -201,6 +175,38 @@ export default function GameDetail() {
       <button className="btn" disabled={participants.length === 0} onClick={startGame} style={{ width: '100%', opacity: participants.length === 0 ? 0.5 : 1 }}>
         게임 시작
       </button>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <h2>배경화면</h2>
+        <p style={{ color: '#888', margin: '4px 0 8px' }}>
+          {game.backgroundImage?.name ?? '설정된 배경화면이 없어요 (기본 배경이 사용돼요)'}
+        </p>
+        <input type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.heic" onChange={changeBackground} />
+      </div>
+
+      {isAdmin && (
+        <div className="card">
+          <h2>효과음 버튼</h2>
+          <p style={{ color: '#888', margin: '4px 0 8px' }}>게임 진행 화면에 표시할 효과음 버튼을 만들어요. 관리자만 추가/삭제/이름 수정할 수 있어요.</p>
+          {(game.soundEffects || []).map(fx => (
+            <div key={fx.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0' }}>
+              <input value={fx.name} onChange={e => renameSoundEffect(fx.id, e.target.value)} style={{ margin: 0 }} />
+              <button className="btn danger" onClick={() => removeSoundEffect(fx.id)}>삭제</button>
+            </div>
+          ))}
+          <input placeholder="효과음 이름 (예: 승리 팡파레)" value={fxName} onChange={e => setFxName(e.target.value)} />
+          <input type="file" accept={AUDIO_ACCEPT} onChange={e => setFxFile(e.target.files?.[0] ?? null)} />
+          <button className="btn secondary" style={{ marginTop: 8 }} onClick={addSoundEffect}>효과음 버튼 추가</button>
+        </div>
+      )}
+
+      <div className="card">
+        <h2>배경음악</h2>
+        <p style={{ color: '#888', margin: '4px 0 8px' }}>
+          {game.bgm?.name ?? '설정된 배경음악이 없어요'}
+        </p>
+        <input type="file" accept={AUDIO_ACCEPT} onChange={changeBgm} />
+      </div>
 
       {modal === 'picker' && (
         <Modal onClose={() => setModal(null)}>

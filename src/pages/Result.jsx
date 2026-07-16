@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db.js'
 import { formatDuration } from '../utils/formatDuration.js'
 import DisplayName from '../components/DisplayName.jsx'
+import ParticipantPortrait from '../components/ParticipantPortrait.jsx'
 
 export default function Result() {
   const { sessionId } = useParams()
@@ -63,8 +64,11 @@ export default function Result() {
           <div key={team} className="card">
             <h2>{team} · 승리 {score}회</h2>
             {members.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-                <span><DisplayName title={p.title} name={p.name} /></span>
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ParticipantPortrait image={p.image} name={p.name} className="result-participant-portrait" />
+                  <DisplayName title={p.title} name={p.name} />
+                </span>
                 <span>승리 {p.wins || 0}회</span>
               </div>
             ))}
@@ -74,8 +78,11 @@ export default function Result() {
         <div className="card">
           <h2>참석자 목록</h2>
           {participants.map(p => (
-            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
-              <span><DisplayName title={p.title} name={p.name} /></span>
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ParticipantPortrait image={p.image} name={p.name} className="result-participant-portrait" />
+                <DisplayName title={p.title} name={p.name} />
+              </span>
               <span>승리 {p.wins || 0}회</span>
             </div>
           ))}

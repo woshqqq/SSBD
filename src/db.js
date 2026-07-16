@@ -1,4 +1,5 @@
 import Dexie from 'dexie'
+import { publicPath } from './utils/publicPath.js'
 
 // Dexie는 브라우저 내장 저장소인 IndexedDB를 쉽게 다루게 해주는 라이브러리.
 // 여기서 정의하는 각 table은 엑셀 시트 하나라고 생각하면 된다.
@@ -34,23 +35,60 @@ export function defaultResources() {
   return Array.from({ length: 5 }, (_, i) => ({ id: i, label: `자원 ${i + 1}` }))
 }
 
-// 앱을 처음 켰을 때 예시 게임 몇 개를 미리 넣어둔다.
-// 실제 서비스할 게임 목록으로 나중에 바꾸면 된다.
+// public/ 폴더에 미리 넣어둔 파일을 실제 업로드한 것과 똑같은 형태(File)로 만들어서
+// games 레코드에 그대로 저장한다 - 그래야 관리자 화면의 파일명 표시 등 기존 로직을 그대로 쓸 수 있다.
+async function fetchAsFile(relativePath, filename) {
+  const res = await fetch(publicPath(relativePath))
+  const blob = await res.blob()
+  return new File([blob], filename, { type: blob.type })
+}
+
+// 기본으로 준비해둔 게임 11종의 배경화면/배경음악/효과음 파일 매핑.
+// 파일들은 public/backgrounds, public/bgm, public/audio 에 미리 넣어둔 것들이다.
+const DEFAULT_GAME_DEFS = [
+  { name: '아발론', genre: '블러핑', background: 'back_avalon.png', bgm: 'bgm_avalon.wav', effect: { name: '나레이션', file: 'audio_avalon_narration.mp3' } },
+  { name: '저스트 원', genre: '파티', background: 'back_justone.png', bgm: 'bgm_party.mp3', effect: { name: '폴트', file: 'audio_justone_fault.mp3' } },
+  { name: '달무티', genre: '카드', background: 'back_dalmuti.png', bgm: 'bgm_dalmuti.mp3' },
+  { name: '디크립토', genre: '추리', background: 'back_decrypto.jpg', bgm: 'bgm_deduction.mp3' },
+  { name: '도박 테마', genre: '파티', background: 'back_GAMBLE.png', bgm: 'bgm_gamble.mp3' },
+  { name: '추론 테마', genre: '추리', background: 'back_DEDUCTION.png', bgm: 'bgm_deduction.mp3' },
+  { name: '코드네임', genre: '파티', background: 'back_codename.png', bgm: 'bgm_deduction.mp3' },
+  { name: '스페이스 크루', genre: '협력', background: 'back_spacecrew.png', bgm: 'bgm_spacecrew.mp3' },
+  { name: '파티 테마', genre: '파티', background: 'back_Party.png', bgm: 'bgm_party.mp3' },
+  { name: '인사이더 블랙', genre: '추리', background: 'back_codename.png', bgm: 'bgm_deduction.mp3' },
+  { name: '인필트레이터', genre: '블러핑', background: 'back_Infiltrator.png', bgm: 'bgm_deduction.mp3' },
+]
+
+// 앱을 처음 켰을 때 기본 게임 목록을 실제 파일과 함께 미리 채워둔다.
 export async function seedGamesIfEmpty() {
   const count = await db.games.count()
   if (count > 0) return
-  await db.games.bulkAdd([
-    {
-      name: '카탄', genre: '전략', note: '3~4인용', supportType: 'resource-counter',
-      bgm: null, backgroundImage: null, resources: defaultResources()
-    },
-    {
-      name: '스플렌더', genre: '전략', note: '2~4인용', supportType: 'token-counter',
-      bgm: null, backgroundImage: null, resources: defaultResources()
-    },
-    {
-      name: '아그리콜라', genre: '전략', note: '1~5인용', supportType: 'generic',
-      bgm: null, backgroundImage: null, resources: defaultResources()
+
+  const games = await Promise.all(DEFAULT_GAME_DEFS.map(async def => {
+    const [backgroundImage, bgm] = await Promise.all([
+      fetchAsFile(`backgrounds/${def.background}`, def.background),
+      fetchAsFile(`bgm/${def.bgm}`, def.bgm),
+    ])
+    const soundEffects = []
+    if (def.effect) {
+      soundEffects.push({
+        id: Date.now() + Math.random(),
+        name: def.effect.name,
+        file: await fetchAsFile(`audio/${def.effect.file}`, def.effect.file),
+      })
     }
-  ])
+    return {
+      name: def.name,
+      genre: def.genre,
+      note: '',
+      teamMode: false,
+      supportType: 'generic',
+      bgm,
+      backgroundImage,
+      soundEffects,
+      resources: defaultResources(),
+    }
+  }))
+
+  await db.games.bulkAdd(games)
 }

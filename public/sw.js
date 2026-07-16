@@ -2,7 +2,7 @@
 // 앱을 처음 켤 때 필요한 파일들을 창고(캐시)에 저장해두고,
 // 다음부터는 인터넷이 없어도 창고에서 바로 꺼내준다.
 
-const CACHE_NAME = 'boardgame-cache-v5';
+const CACHE_NAME = 'boardgame-cache-v6';
 
 // 최초 설치 시 저장해둘 파일 목록.
 // 서비스워커 안에서 상대경로는 이 스크립트 자신의 위치(scope) 기준으로 풀리기 때문에,

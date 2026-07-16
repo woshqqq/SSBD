@@ -8,6 +8,7 @@ import { formatDuration } from '../utils/formatDuration.js'
 import { colorForParticipant } from '../utils/participantColor.js'
 import Modal from '../components/Modal.jsx'
 import ParticipantPicker from '../components/ParticipantPicker.jsx'
+import ParticipantPortrait from '../components/ParticipantPortrait.jsx'
 import WinEffect from '../components/WinEffect.jsx'
 import PlayTimerPopup from '../components/PlayTimerPopup.jsx'
 import DisplayName from '../components/DisplayName.jsx'
@@ -29,10 +30,12 @@ export default function Play() {
 
   const [now, setNow] = useState(Date.now())
   const [muted, setMuted] = useState(false)
+  const [bgmPlaying, setBgmPlaying] = useState(true)
   const [actionFor, setActionFor] = useState(null) // participant being acted on
   const [swapMode, setSwapMode] = useState(false)
-  const [winPreset, setWinPreset] = useState(null)
-  const [finalCheck, setFinalCheck] = useState(false)
+  const [winnersShown, setWinnersShown] = useState(null) // 승리 이펙트에 보여줄 승자 배열
+  const [celebrateThenEnd, setCelebrateThenEnd] = useState(false)
+  const [endGameOpen, setEndGameOpen] = useState(false)
   const [selectedWinners, setSelectedWinners] = useState([])
   const [timerOpen, setTimerOpen] = useState(false)
   const [activeEffectId, setActiveEffectId] = useState(null)
@@ -67,6 +70,18 @@ export default function Play() {
   const teamMode = Boolean(game.teamMode)
   const teamNames = teamMode ? [...new Set(participants.map(p => p.team).filter(Boolean))].sort() : []
 
+  // 배경음악 재생/정지: 안정성을 위해 자동재생에만 의존하지 않고 수동 버튼도 둔다.
+  function toggleBgm() {
+    if (!bgmRef.current) return
+    if (bgmPlaying) {
+      bgmRef.current.pause()
+      setBgmPlaying(false)
+    } else {
+      bgmRef.current.play().catch(() => {})
+      setBgmPlaying(true)
+    }
+  }
+
   // 효과음 버튼: 누르면 배경음악을 멈추고 효과음을 한 번만 재생, 다 끝나면 자동으로 배경음악 재개.
   // 재생 중인 효과음을 다시 누르면 처음부터 다시 재생한다(무한반복 아님, 매번 1회 재생).
   function playEffect(fx) {
@@ -81,31 +96,38 @@ export default function Play() {
 
   function handleEffectEnded() {
     setActiveEffectId(null)
-    bgmRef.current?.play().catch(() => {})
+    if (bgmPlaying) bgmRef.current?.play().catch(() => {})
   }
 
-  // 실제 승리 반영: 세션 참가자(wins)와 연결된 프리셋(전체 누적 wins)을 함께 갱신한다.
-  // 게스트(presetId 없음)는 프리셋이 없으니 세션 기록만 남긴다.
-  async function applyWin(participant, showEffect) {
+  // 실제 승리 반영: 세션 참가자(wins)와 연결된 프리셋(전체 누적 wins)을 함께 갱신하고,
+  // 승리 이펙트에 표시할 정보(이름/칭호/이미지)를 반환한다.
+  async function applyWin(participant) {
     await db.participants.update(participant.id, { wins: (participant.wins || 0) + 1 })
-    let presetForEffect = { name: participant.name, title: participant.title, image: null }
+    let effectData = { name: participant.name, title: participant.title, image: participant.image ?? null }
     if (participant.presetId) {
       const preset = await db.presets.get(participant.presetId)
       if (preset) {
         await db.presets.update(preset.id, { wins: (preset.wins || 0) + 1 })
-        presetForEffect = preset
+        effectData = { name: preset.name, title: preset.title, image: preset.image }
       }
     }
-    if (showEffect) setWinPreset(presetForEffect)
+    return effectData
   }
 
   async function handleWin(participant) {
-    await applyWin(participant, true)
+    const effectData = await applyWin(participant)
     setActionFor(null)
+    setCelebrateThenEnd(false)
+    setWinnersShown([effectData])
   }
 
   async function handleSwap(newPreset) {
-    await db.participants.update(actionFor.id, { presetId: newPreset.id, name: newPreset.name, title: newPreset.title || '' })
+    await db.participants.update(actionFor.id, {
+      presetId: newPreset.id,
+      name: newPreset.name,
+      title: newPreset.title || '',
+      image: newPreset.image ?? null,
+    })
     setSwapMode(false)
     setActionFor(null)
   }
@@ -115,33 +137,46 @@ export default function Play() {
     nav(`/result/${sid}`)
   }
 
+  function dismissWinners() {
+    setWinnersShown(null)
+    if (celebrateThenEnd) {
+      setCelebrateThenEnd(false)
+      finalizeSession()
+    }
+  }
+
   function toggleWinner(key) {
     setSelectedWinners(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key])
   }
 
-  async function confirmWinners() {
+  async function confirmEndGame() {
+    let winnerParticipants = []
     if (teamMode) {
       for (const team of selectedWinners) {
-        const members = participants.filter(p => p.team === team)
-        for (const p of members) await applyWin(p, false)
+        winnerParticipants.push(...participants.filter(p => p.team === team))
       }
     } else {
-      for (const id of selectedWinners) {
-        const p = participants.find(x => x.id === id)
-        if (p) await applyWin(p, false)
-      }
+      winnerParticipants = participants.filter(p => selectedWinners.includes(p.id))
     }
-    await finalizeSession()
+
+    setEndGameOpen(false)
+
+    if (winnerParticipants.length === 0) {
+      await finalizeSession()
+      return
+    }
+
+    const effects = []
+    for (const p of winnerParticipants) {
+      effects.push(await applyWin(p))
+    }
+    setCelebrateThenEnd(true)
+    setWinnersShown(effects)
   }
 
   function endGame() {
-    const wantCheck = window.confirm('승리자 체크를 하시겠습니까?')
-    if (wantCheck) {
-      setSelectedWinners([])
-      setFinalCheck(true)
-    } else {
-      finalizeSession()
-    }
+    setSelectedWinners([])
+    setEndGameOpen(true)
   }
 
   function ParticipantChip({ p }) {
@@ -151,6 +186,7 @@ export default function Play() {
         style={{ backgroundColor: colorForParticipant(p.presetId ?? p.name) }}
         onClick={() => setActionFor(p)}
       >
+        <ParticipantPortrait image={p.image} name={p.name} className="play-participant-portrait" />
         <DisplayName title={p.title} name={p.name} />
       </button>
     )
@@ -161,31 +197,39 @@ export default function Play() {
       className="play-screen"
       style={{ backgroundImage: `url(${backgroundUrl || DEFAULT_BACKGROUND})` }}
     >
-      {bgmUrl && <audio ref={bgmRef} src={bgmUrl} autoPlay loop muted={muted} />}
+      {bgmUrl && <audio ref={bgmRef} src={bgmUrl} autoPlay loop muted={muted} onPlay={() => setBgmPlaying(true)} onPause={() => setBgmPlaying(false)} />}
       {effectUrl && <audio ref={effectRef} src={effectUrl} muted={muted} onEnded={handleEffectEnded} />}
 
       <div className="play-topbar">
         <span className="play-timer">{formatDuration(elapsedMs)}</span>
-        <button className="play-mute-btn" onClick={() => setMuted(m => !m)}>
-          {muted ? '🔇' : '🔊'}
-        </button>
       </div>
 
-      <div className="play-bottom">
-        {soundEffects.length > 0 && (
-          <div className="play-soundfx-row">
-            {soundEffects.map(fx => (
-              <button
-                key={fx.id}
-                className={`play-soundfx-btn ${activeEffectId === fx.id ? 'active' : ''}`}
-                onClick={() => playEffect(fx)}
-              >
-                {fx.name}
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="play-topcontrols">
+        {soundEffects.map(fx => (
+          <button
+            key={fx.id}
+            className={`play-soundfx-btn ${activeEffectId === fx.id ? 'active' : ''}`}
+            onClick={() => playEffect(fx)}
+          >
+            {fx.name}
+          </button>
+        ))}
+        <button className="play-timer-btn" onClick={() => setTimerOpen(true)}>
+          {timer.phase === 'idle' ? '🕐' : formatDuration(timer.seconds * 1000)}
+        </button>
+        <button className="play-end-btn btn danger" onClick={endGame}>게임 종료</button>
+      </div>
 
+      <button className="play-mute-btn" onClick={() => setMuted(m => !m)}>
+        {muted ? '🔇' : '🔊'}
+      </button>
+      {bgmUrl && (
+        <button className="play-bgm-btn" onClick={toggleBgm}>
+          {bgmPlaying ? '정지' : '재생'}
+        </button>
+      )}
+
+      <div className="play-bottom">
         <div className="play-participants-list">
           {teamMode ? (
             teamNames.map(team => (
@@ -199,13 +243,6 @@ export default function Play() {
           ) : (
             sorted.map(p => <ParticipantChip key={p.id} p={p} />)
           )}
-        </div>
-
-        <div className="play-bottom-controls">
-          <button className="play-timer-btn" onClick={() => setTimerOpen(true)}>
-            {timer.phase === 'idle' ? '🕐' : formatDuration(timer.seconds * 1000)}
-          </button>
-          <button className="play-end-btn btn danger" onClick={endGame}>게임 종료</button>
         </div>
       </div>
 
@@ -228,14 +265,14 @@ export default function Play() {
         </Modal>
       )}
 
-      {winPreset && <WinEffect preset={winPreset} onDone={() => setWinPreset(null)} />}
+      {winnersShown && <WinEffect winners={winnersShown} onDone={dismissWinners} />}
 
-      {finalCheck && (
-        <Modal onClose={() => setFinalCheck(false)}>
-          <h2>승리자 체크</h2>
+      {endGameOpen && (
+        <Modal onClose={() => setEndGameOpen(false)}>
+          <h2>게임 종료</h2>
           {teamMode ? (
             <>
-              <p style={{ color: '#888' }}>승리한 팀을 모두 선택하세요 (복수 선택 가능).</p>
+              <p style={{ color: '#888' }}>우승한 팀이 있으면 체크하세요 (선택 사항).</p>
               {teamNames.map(team => (
                 <label key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
                   <input
@@ -249,7 +286,7 @@ export default function Play() {
             </>
           ) : (
             <>
-              <p style={{ color: '#888' }}>승리한 참가자를 모두 선택하세요 (복수 선택 가능).</p>
+              <p style={{ color: '#888' }}>우승자가 있으면 체크하세요 (선택 사항).</p>
               {sorted.map(p => (
                 <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
                   <input
@@ -262,7 +299,10 @@ export default function Play() {
               ))}
             </>
           )}
-          <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={confirmWinners}>완료</button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button className="btn danger" onClick={confirmEndGame}>종료</button>
+            <button className="btn secondary" onClick={() => setEndGameOpen(false)}>취소</button>
+          </div>
         </Modal>
       )}
 
