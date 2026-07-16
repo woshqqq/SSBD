@@ -67,13 +67,14 @@ export default function Play() {
   const teamMode = Boolean(game.teamMode)
   const teamNames = teamMode ? [...new Set(participants.map(p => p.team).filter(Boolean))].sort() : []
 
-  // 효과음 버튼: 누르면 배경음악을 멈추고 효과음 재생, 다시 누르거나(또는 효과음이 끝나면) 배경음악 재개.
-  function toggleEffect(fx) {
-    if (activeEffectId === fx.id) {
-      setActiveEffectId(null)
-      bgmRef.current?.play().catch(() => {})
+  // 효과음 버튼: 누르면 배경음악을 멈추고 효과음을 한 번만 재생, 다 끝나면 자동으로 배경음악 재개.
+  // 재생 중인 효과음을 다시 누르면 처음부터 다시 재생한다(무한반복 아님, 매번 1회 재생).
+  function playEffect(fx) {
+    bgmRef.current?.pause()
+    if (activeEffectId === fx.id && effectRef.current) {
+      effectRef.current.currentTime = 0
+      effectRef.current.play().catch(() => {})
     } else {
-      bgmRef.current?.pause()
       setActiveEffectId(fx.id)
     }
   }
@@ -177,7 +178,7 @@ export default function Play() {
               <button
                 key={fx.id}
                 className={`play-soundfx-btn ${activeEffectId === fx.id ? 'active' : ''}`}
-                onClick={() => toggleEffect(fx)}
+                onClick={() => playEffect(fx)}
               >
                 {fx.name}
               </button>
