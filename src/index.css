@@ -93,6 +93,15 @@ input, select {
 
 input::placeholder { color: var(--color-muted); }
 
+/* 위 input 공통 규칙(width:100%, padding:12px 등)이 체크박스/라디오에도 적용되면서
+   가로로 늘어나 옆 텍스트가 세로로 밀리는 문제가 있었다. 체크박스/라디오는 원래 크기로 되돌린다. */
+input[type="checkbox"], input[type="radio"] {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 0;
+  margin: 0;
+}
+
 /* 캐릭터 기본 이미지 12종 선택 그리드 */
 .character-picker-grid {
   display: grid;
@@ -224,6 +233,28 @@ h2 { font-size: 18px; }
   gap: 10px;
   padding-bottom: 14px;
   background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+/* 효과음 버튼 줄 */
+.play-soundfx-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.play-soundfx-btn {
+  background: var(--color-secondary-bg);
+  color: var(--color-secondary-text);
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.play-soundfx-btn.active {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
 }
 
 /* 참가자 목록: 하단 중앙, 가로 배치 + 줄바꿈 */

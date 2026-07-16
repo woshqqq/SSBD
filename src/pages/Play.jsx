@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db.js'
@@ -35,15 +35,29 @@ export default function Play() {
   const [finalCheck, setFinalCheck] = useState(false)
   const [selectedWinners, setSelectedWinners] = useState([])
   const [timerOpen, setTimerOpen] = useState(false)
+  const [activeEffectId, setActiveEffectId] = useState(null)
   const timer = usePlayTimer()
+  const bgmRef = useRef(null)
+  const effectRef = useRef(null)
 
   const backgroundUrl = useObjectUrl(game?.backgroundImage ?? null)
   const bgmUrl = useObjectUrl(game?.bgm ?? null)
+  const soundEffects = game?.soundEffects || []
+  const activeEffect = soundEffects.find(fx => fx.id === activeEffectId)
+  const effectUrl = useObjectUrl(activeEffect?.file ?? null)
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
+
+  // 효과음이 바뀔 때마다(다른 버튼을 누르거나 처음 재생될 때) 처음부터 재생한다.
+  useEffect(() => {
+    if (effectUrl && effectRef.current) {
+      effectRef.current.currentTime = 0
+      effectRef.current.play().catch(() => {})
+    }
+  }, [effectUrl])
 
   if (!session || !game || !participants) return <p>불러오는 중...</p>
 
@@ -52,6 +66,22 @@ export default function Play() {
   const currentPresetIds = participants.filter(p => p.presetId).map(p => p.presetId)
   const teamMode = Boolean(game.teamMode)
   const teamNames = teamMode ? [...new Set(participants.map(p => p.team).filter(Boolean))].sort() : []
+
+  // 효과음 버튼: 누르면 배경음악을 멈추고 효과음 재생, 다시 누르거나(또는 효과음이 끝나면) 배경음악 재개.
+  function toggleEffect(fx) {
+    if (activeEffectId === fx.id) {
+      setActiveEffectId(null)
+      bgmRef.current?.play().catch(() => {})
+    } else {
+      bgmRef.current?.pause()
+      setActiveEffectId(fx.id)
+    }
+  }
+
+  function handleEffectEnded() {
+    setActiveEffectId(null)
+    bgmRef.current?.play().catch(() => {})
+  }
 
   // 실제 승리 반영: 세션 참가자(wins)와 연결된 프리셋(전체 누적 wins)을 함께 갱신한다.
   // 게스트(presetId 없음)는 프리셋이 없으니 세션 기록만 남긴다.
@@ -130,7 +160,8 @@ export default function Play() {
       className="play-screen"
       style={{ backgroundImage: `url(${backgroundUrl || DEFAULT_BACKGROUND})` }}
     >
-      {bgmUrl && <audio src={bgmUrl} autoPlay loop muted={muted} />}
+      {bgmUrl && <audio ref={bgmRef} src={bgmUrl} autoPlay loop muted={muted} />}
+      {effectUrl && <audio ref={effectRef} src={effectUrl} muted={muted} onEnded={handleEffectEnded} />}
 
       <div className="play-topbar">
         <span className="play-timer">{formatDuration(elapsedMs)}</span>
@@ -140,6 +171,20 @@ export default function Play() {
       </div>
 
       <div className="play-bottom">
+        {soundEffects.length > 0 && (
+          <div className="play-soundfx-row">
+            {soundEffects.map(fx => (
+              <button
+                key={fx.id}
+                className={`play-soundfx-btn ${activeEffectId === fx.id ? 'active' : ''}`}
+                onClick={() => toggleEffect(fx)}
+              >
+                {fx.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="play-participants-list">
           {teamMode ? (
             teamNames.map(team => (

@@ -1,9 +1,8 @@
 import React, { useState } from 'react'
 import { GENRES } from '../config/genres.js'
-import { useObjectUrl } from '../hooks/useObjectUrl.js'
 
-// 게임 생성/수정 공용 폼. mode==='edit'일 때만 BGM 업로드를 보여준다.
-// 배경화면은 GameDetail 화면에서 바로 바꿀 수 있어서 여기서는 다루지 않는다.
+// 게임 생성/수정 공용 폼.
+// 배경화면/배경음악/효과음은 GameDetail 화면에서 바로 다루므로 여기서는 다루지 않는다.
 // 서포트 도구 타입(자원/토큰 카운터)은 당분간 안 쓰기로 해서 UI에서 숨겨뒀다 -
 // 기존 값은 그대로 두고(수정 시 건드리지 않음), 새로 만드는 게임은 GameEditor에서 'generic'으로 고정된다.
 export default function GameForm({ mode, initial, onSubmit, onCancel }) {
@@ -11,9 +10,6 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
   const [genre, setGenre] = useState(initial?.genre ?? GENRES[0])
   const [note, setNote] = useState(initial?.note ?? '')
   const [teamMode, setTeamMode] = useState(initial?.teamMode ?? false)
-  const [bgmFile, setBgmFile] = useState(null)
-
-  const bgmPreviewUrl = useObjectUrl(bgmFile ?? initial?.bgm ?? null)
 
   function submit() {
     if (!name.trim()) return alert('게임 이름은 필수예요.')
@@ -24,7 +20,6 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
       note,
       teamMode,
     }
-    if (mode === 'edit' && bgmFile) payload.bgm = bgmFile
     onSubmit(payload)
   }
 
@@ -47,15 +42,6 @@ export default function GameForm({ mode, initial, onSubmit, onCancel }) {
           팀전으로 진행
         </label>
       </div>
-
-      {mode === 'edit' && (
-        <div className="card">
-          <h2>배경음악 연결하기</h2>
-          {bgmPreviewUrl && <audio src={bgmPreviewUrl} controls style={{ width: '100%', marginBottom: 8 }} />}
-          {/* iOS Safari가 accept="audio/*"만으로는 mp3를 자기 인식 못 하는 경우가 있어 확장자를 같이 명시한다 */}
-          <input type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.mp4" onChange={e => setBgmFile(e.target.files?.[0] ?? null)} />
-        </div>
-      )}
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn" onClick={submit}>{mode === 'edit' ? '저장' : '만들기'}</button>
